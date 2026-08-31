@@ -1,16 +1,16 @@
-import * as crypto from "crypto";
-import * as path from "path";
-import * as fs from "fs";
+import * as crypto from 'crypto';
+import * as path from 'path';
+import * as fs from 'fs';
 
-import { OBJECTS_DIR, CHUNK_SIZE } from "../types/constants";
-import type { ChunkHash } from "../types";
+import { OBJECTS_DIR, CHUNK_SIZE } from '../types/constants';
+import type { ChunkHash } from '../types';
 
 /**
  * Generate SHA-256 hash of data
  * @returns 64-character hex string
  */
 export function hashChunk(data: Buffer): ChunkHash {
-  const hash = crypto.createHash("sha256").update(data).digest("hex");
+  const hash = crypto.createHash('sha256').update(data).digest('hex');
   return hash as ChunkHash;
 }
 
@@ -46,7 +46,7 @@ export function chunkBuffer(buffer: Buffer): ChunkHash[] {
  * Read and reconstruct content from chunk hashes
  */
 export function readChunks(chunkHashes: readonly ChunkHash[]): Buffer {
-  const buffers = chunkHashes.map((hash) => {
+  const buffers = chunkHashes.map(hash => {
     const chunkPath = path.join(OBJECTS_DIR, hash.slice(0, 2), hash.slice(2));
     return fs.readFileSync(chunkPath);
   });

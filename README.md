@@ -63,24 +63,24 @@ bun run ghost watch
 
 ## Commands
 
-| Command | Alias | Description |
-|---------|-------|-------------|
-| `init` | `setup` | Initialize `.ghost/` repository |
-| `write <path> <content>` | `w` | Write content, create snapshot |
-| `read <path>` | `r` | Read latest (or at `-t` time) |
-| `history <path>` | `h` | Show version timeline |
-| `rm <path>` | `delete` | Soft delete (marks deleted) |
-| `restore <path>` | `undel` | Restore last active version |
-| `watch` | `daemon` | Watch directory, auto-commit changes |
+| Command                  | Alias    | Description                          |
+| ------------------------ | -------- | ------------------------------------ |
+| `init`                   | `setup`  | Initialize `.ghost/` repository      |
+| `write <path> <content>` | `w`      | Write content, create snapshot       |
+| `read <path>`            | `r`      | Read latest (or at `-t` time)        |
+| `history <path>`         | `h`      | Show version timeline                |
+| `rm <path>`              | `delete` | Soft delete (marks deleted)          |
+| `restore <path>`         | `undel`  | Restore last active version          |
+| `watch`                  | `daemon` | Watch directory, auto-commit changes |
 
 ## Type Safety
 
 Ghost uses **branded types** for domain modeling:
 
 ```typescript
-type FileId = Brand<string, "FileId">;
-type ChunkHash = Brand<string, "ChunkHash">;
-type Timestamp = Brand<number, "Timestamp">;
+type FileId = Brand<string, 'FileId'>;
+type ChunkHash = Brand<string, 'ChunkHash'>;
+type Timestamp = Brand<number, 'Timestamp'>;
 ```
 
 This prevents accidental mixing of identifiers at compile time.
@@ -89,10 +89,10 @@ This prevents accidental mixing of identifiers at compile time.
 
 ```typescript
 type OperationState<T> =
-  | { status: "pending" }
-  | { status: "loading"; startedAt: Timestamp }
-  | { status: "success"; data: T; completedAt: Timestamp }
-  | { status: "error"; error: Error; failedAt: Timestamp };
+  | { status: 'pending' }
+  | { status: 'loading'; startedAt: Timestamp }
+  | { status: 'success'; data: T; completedAt: Timestamp }
+  | { status: 'error'; error: Error; failedAt: Timestamp };
 ```
 
 **`satisfies` operator** validates object shapes at compile time:

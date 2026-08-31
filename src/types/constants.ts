@@ -1,13 +1,13 @@
-import * as path from "path";
+import * as path from 'path';
 
 /** Root directory for ghost repository */
-export const REPO_DIR = ".ghost";
+export const REPO_DIR = '.ghost';
 
 /** Directory for storing content chunks */
-export const OBJECTS_DIR = path.join(REPO_DIR, "objects");
+export const OBJECTS_DIR = path.join(REPO_DIR, 'objects');
 
 /** Journal file for tracking operations */
-export const JOURNAL_FILE = path.join(REPO_DIR, "journal.log");
+export const JOURNAL_FILE = path.join(REPO_DIR, 'journal.log');
 
 /** Chunk size for content splitting (4KB) */
 export const CHUNK_SIZE = 4096;

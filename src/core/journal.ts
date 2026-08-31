@@ -1,39 +1,51 @@
-import * as fs from "fs";
-import { JOURNAL_FILE } from "../types/constants";
-import type { JournalEntry, FileId, Timestamp, ChunkHash, ByteSize } from "../types";
-import { createJournalEntry, isFileId } from "../types";
+import * as fs from 'fs';
+import { JOURNAL_FILE } from '../types/constants';
+import {
+  createJournalEntry,
+  type JournalEntry,
+  type FileId,
+  type Timestamp,
+  type ChunkHash,
+  type ByteSize,
+} from '../types';
 
 /**
  * Append a journal entry to the log file
  */
 export function appendJournal(entry: JournalEntry): void {
   if (!fs.existsSync(JOURNAL_FILE)) {
-    throw new Error(
-      "Journal file does not exist. Please initialize the repository first."
-    );
+    throw new Error('Journal file does not exist. Please initialize the repository first.');
   }
-  fs.appendFileSync(JOURNAL_FILE, JSON.stringify(entry) + "\n");
+  fs.appendFileSync(JOURNAL_FILE, JSON.stringify(entry) + '\n');
 }
 
 /**
  * Read all journal entries from the log file
  */
 export function readJournal(): JournalEntry[] {
-  if (!fs.existsSync(JOURNAL_FILE)) return [];
-  return fs
-    .readFileSync(JOURNAL_FILE, "utf-8")
+  if (!fs.existsSync(JOURNAL_FILE)) {
+    return [];
+  }
+  const content = fs.readFileSync(JOURNAL_FILE, 'utf-8');
+  if (!content.trim()) {
+    return [];
+  }
+
+  return content
     .trim()
-    .split("\n")
+    .split('\n')
     .filter(Boolean)
-    .map((line) => {
-      const parsed = JSON.parse(line);
+    .map((line): JournalEntry => {
+      const parsed = JSON.parse(line) as Record<string, unknown>;
       // Ensure branded types are preserved
       return {
+        __brand: 'JournalEntry' as const,
         ...parsed,
-        filepath: parsed.filepath as FileId,
-        chunks: parsed.chunks as readonly ChunkHash[],
-        timestamp: parsed.timestamp as Timestamp,
-        size: parsed.size as ByteSize,
+        filepath: parsed['filepath'] as FileId,
+        chunks: parsed['chunks'] as readonly ChunkHash[],
+        timestamp: parsed['timestamp'] as Timestamp,
+        size: parsed['size'] as ByteSize,
+        isDeleted: Boolean(parsed['isDeleted']),
       } satisfies JournalEntry;
     });
 }
@@ -46,7 +58,7 @@ export function readJournal(): JournalEntry[] {
  */
 export function resolveFileState(
   filepath: string,
-  target: number = Date.now(),
+  target: number = Date.now()
 ): JournalEntry | null {
   const entries = readJournal();
   let latestMatch: JournalEntry | null = null;

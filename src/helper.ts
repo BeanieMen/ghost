@@ -1,8 +1,6 @@
 import * as fs from 'node:fs/promises';
 
-export async function createDirectoryIfNotExists(
-  dirPath: string,
-): Promise<void> {
+export async function createDirectoryIfNotExists(dirPath: string): Promise<void> {
   await fs.mkdir(dirPath, { recursive: true });
 }
 

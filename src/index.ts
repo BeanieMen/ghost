@@ -1,28 +1,27 @@
 #!/usr/bin/env bun
 /**
  * Ghost Filesystem CLI
- * 
+ *
  * A temporal filesystem that treats time as part of the data.
  * Content is chunked, hashed (SHA-256), and versioned.
  */
 
-import { Command } from "commander";
-import { createDirectoryIfNotExists, createFile } from "./helper";
-import { chunkBuffer, readChunks } from "./helpers/crypto";
-import { appendJournal, readJournal, resolveFileState, createEntry } from "./core/journal";
-import * as path from "node:path";
-import { OBJECTS_DIR, CHUNK_SIZE } from "./types/constants";
-import type { JournalEntry, ChunkHash, Timestamp, Subcommand } from "./types";
-import { readFileSync, existsSync, statSync, watch } from "node:fs";
+import { Command } from 'commander';
+import { createDirectoryIfNotExists, createFile } from './helper';
+import { chunkBuffer, readChunks } from './helpers/crypto';
+import { appendJournal, readJournal, resolveFileState, createEntry } from './core/journal';
+import * as path from 'node:path';
+import type { JournalEntry } from './types';
+import { readFileSync, existsSync, statSync, watch } from 'node:fs';
 
 const program = new Command();
 
 program
-  .name("ghost")
-  .description("temporal filesystem — time is part of the data")
-  .version("1.0.0")
+  .name('ghost')
+  .description('temporal filesystem — time is part of the data')
+  .version('1.0.0')
   .addHelpText(
-    "after",
+    'after',
     `
 Examples:
   $ ghost init                          # Initialize repository
@@ -40,76 +39,76 @@ Examples:
 // Init Command
 // ============================================================================
 program
-  .command("init")
-  .description("initialize the ghost repository")
+  .command('init')
+  .description('initialize the ghost repository')
   .action(async () => {
     console.log(process.cwd());
-    await createDirectoryIfNotExists("./.ghost");
-    await createDirectoryIfNotExists("./.ghost/objects");
-    await createFile("./.ghost/journal.log");
-    console.log("Ghost repository initialized");
+    await createDirectoryIfNotExists('./.ghost');
+    await createDirectoryIfNotExists('./.ghost/objects');
+    await createFile('./.ghost/journal.log');
+    console.log('Ghost repository initialized');
   });
 
 // ============================================================================
 // Write Command - uses satisfies for compile-time validation
 // ============================================================================
 program
-  .command("write <filepath> <content>")
-  .alias("w")
-  .description("write content to a file")
+  .command('write <filepath> <content>')
+  .alias('w')
+  .description('write content to a file')
   .action((filepath: string, content: string) => {
-    const buffer = Buffer.from(content, "utf-8");
+    const buffer = Buffer.from(content, 'utf-8');
     const chunks = chunkBuffer(buffer);
 
     // Type-safe entry creation with satisfies operator
     const entry = createEntry({
       filepath,
-      chunks: chunks as ChunkHash[],
+      chunks: chunks,
       size: buffer.length,
       isDeleted: false,
     });
 
     appendJournal(entry);
-    console.log(`Content written to ${filepath} (${chunks.length} chunk${chunks.length !== 1 ? "s" : ""})`);
+    console.log(
+      `Content written to ${filepath} (${chunks.length} chunk${chunks.length !== 1 ? 's' : ''})`
+    );
   });
 
 // ============================================================================
 // Read Command
 // ============================================================================
 program
-  .command("read <filepath>")
-  .alias("r")
-  .description("read content from a file")
-  .option("-t, --time <time>", "read content at a specific timestamp")
+  .command('read <filepath>')
+  .alias('r')
+  .description('read content from a file')
+  .option('-t, --time <time>', 'read content at a specific timestamp')
   .action((filepath: string, options: { time?: string }) => {
     const time = options.time ? parseInt(options.time, 10) : Date.now();
-    
+
     if (Number.isNaN(time)) {
-      console.error("Invalid timestamp");
+      console.error('Invalid timestamp');
       process.exit(1);
     }
 
     const entry = resolveFileState(filepath, time);
-    
+
     if (!entry || entry.chunks.length === 0) {
-      console.error(
-        `No content found for ${filepath} at ${new Date(time).toISOString()}`
-      );
+      console.error(`No content found for ${filepath} at ${new Date(time).toISOString()}`);
       process.exit(1);
     }
 
     // Use typed readChunks for reconstruction
     const content = readChunks(entry.chunks);
-    process.stdout.write(content.toString("utf-8"));
+    process.stdout.write(content.toString('utf-8'));
   });
 
 // ============================================================================
 // History Command
 // ============================================================================
 program
-  .command("history <filepath>")
-  .alias("h")
-  .description("show the history of changes for a file")
+  .command('history <filepath>')
+  .alias('h')
+  .description('show the history of changes for a file')
   .action((filepath: string) => {
     const entries = readJournal();
     const fileHistory = entries.filter((e: JournalEntry) => e.filepath === filepath);
@@ -121,9 +120,11 @@ program
 
     console.log(`Timeline for ${filepath}:`);
     for (const entry of fileHistory) {
-      const status = entry.isDeleted ? "deleted" : "written";
+      const status = entry.isDeleted ? 'deleted' : 'written';
       const time = new Date(Number(entry.timestamp)).toISOString();
-      console.log(`- ${time} | ${entry.size} bytes | ${status} | ${entry.chunks.length} chunk${entry.chunks.length !== 1 ? "s" : ""}`);
+      console.log(
+        `- ${time} | ${entry.size} bytes | ${status} | ${entry.chunks.length} chunk${entry.chunks.length !== 1 ? 's' : ''}`
+      );
     }
   });
 
@@ -131,9 +132,9 @@ program
 // Remove (Soft Delete) Command
 // ============================================================================
 program
-  .command("rm <filepath>")
-  .alias("delete")
-  .description("remove a file from the current filesystem while preserving history")
+  .command('rm <filepath>')
+  .alias('delete')
+  .description('remove a file from the current filesystem while preserving history')
   .action((filepath: string) => {
     const entry = createEntry({
       filepath,
@@ -149,9 +150,9 @@ program
 // Restore Command (fixed typo: ressurect -> restore)
 // ============================================================================
 program
-  .command("restore <filepath>")
-  .alias("undel")
-  .description("restore a soft-deleted file from its history")
+  .command('restore <filepath>')
+  .alias('undel')
+  .description('restore a soft-deleted file from its history')
   .action((filepath: string) => {
     const entries = readJournal();
     let lastActive: JournalEntry | null = null;
@@ -173,34 +174,37 @@ program
       size: Number(lastActive.size),
       isDeleted: false,
     });
-    
+
     appendJournal(entry);
-    console.log(`File ${filepath} restored from ${new Date(Number(lastActive.timestamp)).toISOString()}`);
+    console.log(
+      `File ${filepath} restored from ${new Date(Number(lastActive.timestamp)).toISOString()}`
+    );
   });
 
 // ============================================================================
 // Watch Command
 // ============================================================================
 program
-  .command("watch")
-  .alias("daemon")
-  .description("watch for changes in the filesystem")
+  .command('watch')
+  .alias('daemon')
+  .description('watch for changes in the filesystem')
   .action(() => {
-    console.log("Ghost daemon watching directory for changes...");
+    console.log('Ghost daemon watching directory for changes...');
     const activeTimeouts = new Map<string, NodeJS.Timeout>();
 
-    watch(".", { recursive: true }, (_eventType, filename) => {
+    watch('.', { recursive: true }, (_eventType, filename) => {
       // filename can be null in some cases
       if (
-        filename == null ||
-        filename.startsWith("ghost") ||
-        filename.endsWith("~$*")
+        filename === null ||
+        filename === undefined ||
+        filename.startsWith('ghost') ||
+        filename.endsWith('~$*')
       ) {
         return;
       }
 
       if (activeTimeouts.has(filename)) {
-        clearTimeout(activeTimeouts.get(filename)!);
+        clearTimeout(activeTimeouts.get(filename));
       }
 
       activeTimeouts.set(
@@ -218,7 +222,7 @@ program
             if (latestHashStr !== newHashStr) {
               const entry = createEntry({
                 filepath: filename,
-                chunks: chunks as ChunkHash[],
+                chunks: chunks,
                 size: content.length,
                 isDeleted: false,
               });
@@ -226,7 +230,7 @@ program
               console.log(`[Watch] Auto-committed update for ${filename}`);
             }
           }
-        }, 300),
+        }, 300)
       );
     });
   });
