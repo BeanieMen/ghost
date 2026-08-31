@@ -1,0 +1,3 @@
+{"timestamp":1788205741791,"filepath":"chunk1.txt","chunks":["d4c3ad047de841268dfa59da3a61873c491bb56fdf52d65e6aa45ece3c70d972"],"size":11,"isDeleted":false}
+{"timestamp":1788205741900,"filepath":"chunk2.txt","chunks":["4dfedc641158b8c314dd07950d12397a47f59ff0276340d8bf43702945773672"],"size":12,"isDeleted":false}
+{"timestamp":1788205741987,"filepath":"chunk3.txt","chunks":["02e5f1b12c70b81fb784d8f899dc37a6fe5908b174e3374732534b81828a4268"],"size":11,"isDeleted":false}
