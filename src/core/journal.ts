@@ -9,9 +9,6 @@ import {
   type ByteSize,
 } from '../types';
 
-/**
- * Append a journal entry to the log file
- */
 export function appendJournal(entry: JournalEntry): void {
   if (!fs.existsSync(JOURNAL_FILE)) {
     throw new Error('Journal file does not exist. Please initialize the repository first.');
@@ -19,9 +16,6 @@ export function appendJournal(entry: JournalEntry): void {
   fs.appendFileSync(JOURNAL_FILE, JSON.stringify(entry) + '\n');
 }
 
-/**
- * Read all journal entries from the log file
- */
 export function readJournal(): JournalEntry[] {
   if (!fs.existsSync(JOURNAL_FILE)) {
     return [];
@@ -37,7 +31,6 @@ export function readJournal(): JournalEntry[] {
     .filter(Boolean)
     .map((line): JournalEntry => {
       const parsed = JSON.parse(line) as Record<string, unknown>;
-      // Ensure branded types are preserved
       return {
         __brand: 'JournalEntry' as const,
         ...parsed,
@@ -50,12 +43,6 @@ export function readJournal(): JournalEntry[] {
     });
 }
 
-/**
- * Resolve the file state at a specific point in time
- * @param filepath - File identifier
- * @param target - Target timestamp (defaults to now)
- * @returns Latest matching entry or null
- */
 export function resolveFileState(
   filepath: string,
   target: number = Date.now()
@@ -71,9 +58,6 @@ export function resolveFileState(
   return latestMatch;
 }
 
-/**
- * Create a new journal entry with type validation
- */
 export function createEntry(params: {
   filepath: string;
   chunks: string[];

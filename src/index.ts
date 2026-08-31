@@ -1,11 +1,4 @@
 #!/usr/bin/env bun
-/**
- * Ghost Filesystem CLI
- *
- * A temporal filesystem that treats time as part of the data.
- * Content is chunked, hashed (SHA-256), and versioned.
- */
-
 import { Command } from 'commander';
 import { createDirectoryIfNotExists, createFile } from './helper';
 import { chunkBuffer, readChunks } from './helpers/crypto';
@@ -35,9 +28,6 @@ Examples:
 `
   );
 
-// ============================================================================
-// Init Command
-// ============================================================================
 program
   .command('init')
   .description('initialize the ghost repository')
@@ -49,9 +39,6 @@ program
     console.log('Ghost repository initialized');
   });
 
-// ============================================================================
-// Write Command - uses satisfies for compile-time validation
-// ============================================================================
 program
   .command('write <filepath> <content>')
   .alias('w')
@@ -60,7 +47,6 @@ program
     const buffer = Buffer.from(content, 'utf-8');
     const chunks = chunkBuffer(buffer);
 
-    // Type-safe entry creation with satisfies operator
     const entry = createEntry({
       filepath,
       chunks: chunks,
@@ -74,9 +60,6 @@ program
     );
   });
 
-// ============================================================================
-// Read Command
-// ============================================================================
 program
   .command('read <filepath>')
   .alias('r')
@@ -97,14 +80,10 @@ program
       process.exit(1);
     }
 
-    // Use typed readChunks for reconstruction
     const content = readChunks(entry.chunks);
     process.stdout.write(content.toString('utf-8'));
   });
 
-// ============================================================================
-// History Command
-// ============================================================================
 program
   .command('history <filepath>')
   .alias('h')
@@ -128,9 +107,6 @@ program
     }
   });
 
-// ============================================================================
-// Remove (Soft Delete) Command
-// ============================================================================
 program
   .command('rm <filepath>')
   .alias('delete')
@@ -146,9 +122,6 @@ program
     console.log(`File ${filepath} marked as deleted in the journal.`);
   });
 
-// ============================================================================
-// Restore Command (fixed typo: ressurect -> restore)
-// ============================================================================
 program
   .command('restore <filepath>')
   .alias('undel')
@@ -181,9 +154,6 @@ program
     );
   });
 
-// ============================================================================
-// Watch Command
-// ============================================================================
 program
   .command('watch')
   .alias('daemon')
@@ -193,7 +163,6 @@ program
     const activeTimeouts = new Map<string, NodeJS.Timeout>();
 
     watch('.', { recursive: true }, (_eventType, filename) => {
-      // filename can be null in some cases
       if (
         filename === null ||
         filename === undefined ||
