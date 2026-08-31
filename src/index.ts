@@ -1,152 +1,206 @@
-import { Command } from 'commander';
-import { createDirectoryIfNotExists, createFile } from './helper';
-import { chunkBuffer } from './helpers/crypto';
-import { appendJournal, readJournal, resolveFileState } from './core/journal';
-import * as path from 'node:path';
-import { OBJECTS_DIR } from './types/constants';
-import type { JournalEntry } from './types';
-import { readFileSync, existsSync, statSync, watch } from 'node:fs';
+#!/usr/bin/env bun
+/**
+ * Ghost Filesystem CLI
+ * 
+ * A temporal filesystem that treats time as part of the data.
+ * Content is chunked, hashed (SHA-256), and versioned.
+ */
+
+import { Command } from "commander";
+import { createDirectoryIfNotExists, createFile } from "./helper";
+import { chunkBuffer, readChunks } from "./helpers/crypto";
+import { appendJournal, readJournal, resolveFileState, createEntry } from "./core/journal";
+import * as path from "node:path";
+import { OBJECTS_DIR, CHUNK_SIZE } from "./types/constants";
+import type { JournalEntry, ChunkHash, Timestamp, Subcommand } from "./types";
+import { readFileSync, existsSync, statSync, watch } from "node:fs";
 
 const program = new Command();
 
 program
-  .name('ghost')
-  .description('filesystem that treats time as part of the data')
-  .version('1.0.0');
+  .name("ghost")
+  .description("temporal filesystem — time is part of the data")
+  .version("1.0.0")
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ ghost init                          # Initialize repository
+  $ ghost write file.txt "content"      # Write content
+  $ ghost read file.txt                 # Read latest version
+  $ ghost read file.txt -t 1234567890   # Read at timestamp
+  $ ghost history file.txt              # Show change history
+  $ ghost rm file.txt                   # Soft delete
+  $ ghost restore file.txt              # Restore from delete
+  $ ghost watch                         # Watch for changes
+`
+  );
 
+// ============================================================================
+// Init Command
+// ============================================================================
 program
-  .command('init')
-  .description('initialize the ghost managing directory')
+  .command("init")
+  .description("initialize the ghost repository")
   .action(async () => {
     console.log(process.cwd());
-    await createDirectoryIfNotExists('./.ghost');
-
-    await createDirectoryIfNotExists('./.ghost/objects');
-    await createFile('./.ghost/journal.log');
+    await createDirectoryIfNotExists("./.ghost");
+    await createDirectoryIfNotExists("./.ghost/objects");
+    await createFile("./.ghost/journal.log");
+    console.log("Ghost repository initialized");
   });
 
+// ============================================================================
+// Write Command - uses satisfies for compile-time validation
+// ============================================================================
 program
-  .command('write <filepath> <content>')
-  .description('write content to a file')
+  .command("write <filepath> <content>")
+  .alias("w")
+  .description("write content to a file")
   .action((filepath: string, content: string) => {
-    const buffer = Buffer.from(content, 'utf-8');
+    const buffer = Buffer.from(content, "utf-8");
     const chunks = chunkBuffer(buffer);
 
-    appendJournal({
-      timestamp: Date.now(),
+    // Type-safe entry creation with satisfies operator
+    const entry = createEntry({
       filepath,
-      chunks,
+      chunks: chunks as ChunkHash[],
       size: buffer.length,
       isDeleted: false,
     });
-    console.log(`Content written to ${filepath} and journal updated.`);
+
+    appendJournal(entry);
+    console.log(`Content written to ${filepath} (${chunks.length} chunk${chunks.length !== 1 ? "s" : ""})`);
   });
 
+// ============================================================================
+// Read Command
+// ============================================================================
 program
-  .command('read <filepath>')
-  .description('read content from a file')
-  .option('-t, --time <time>', 'read content at a specific time')
+  .command("read <filepath>")
+  .alias("r")
+  .description("read content from a file")
+  .option("-t, --time <time>", "read content at a specific timestamp")
   .action((filepath: string, options: { time?: string }) => {
-    const time = options.time ? parseInt(options.time) : Date.now();
+    const time = options.time ? parseInt(options.time, 10) : Date.now();
+    
+    if (Number.isNaN(time)) {
+      console.error("Invalid timestamp");
+      process.exit(1);
+    }
+
     const entry = resolveFileState(filepath, time);
+    
     if (!entry || entry.chunks.length === 0) {
-      console.log(
-        `No content found for ${filepath} at time ${new Date(time).toLocaleDateString()}.`,
+      console.error(
+        `No content found for ${filepath} at ${new Date(time).toISOString()}`
       );
       process.exit(1);
     }
-    const chunkBuffers = entry.chunks.map((hash: string) => {
-      const chunkPath = path.join(OBJECTS_DIR, hash.slice(0, 2), hash.slice(2));
-      return readFileSync(chunkPath);
-    });
-    process.stdout.write(Buffer.concat(chunkBuffers).toString('utf-8'));
+
+    // Use typed readChunks for reconstruction
+    const content = readChunks(entry.chunks);
+    process.stdout.write(content.toString("utf-8"));
   });
 
+// ============================================================================
+// History Command
+// ============================================================================
 program
-  .command('history <filepath>')
-  .description('show the history of changes for a file')
+  .command("history <filepath>")
+  .alias("h")
+  .description("show the history of changes for a file")
   .action((filepath: string) => {
     const entries = readJournal();
-    const fileHistory = entries.filter(
-      (e: JournalEntry) => e.filepath === filepath,
-    );
+    const fileHistory = entries.filter((e: JournalEntry) => e.filepath === filepath);
 
     if (fileHistory.length === 0) {
       console.log(`No history found for ${filepath}.`);
       return;
     }
+
     console.log(`Timeline for ${filepath}:`);
-    for (const h of fileHistory) {
-      const status = h.isDeleted ? 'deleted' : 'written';
-      console.log(
-        `- Time: ${new Date(h.timestamp).toLocaleDateString()} | Size: ${String(h.size)} bytes | Status: ${status}`,
-      );
+    for (const entry of fileHistory) {
+      const status = entry.isDeleted ? "deleted" : "written";
+      const time = new Date(Number(entry.timestamp)).toISOString();
+      console.log(`- ${time} | ${entry.size} bytes | ${status} | ${entry.chunks.length} chunk${entry.chunks.length !== 1 ? "s" : ""}`);
     }
   });
 
+// ============================================================================
+// Remove (Soft Delete) Command
+// ============================================================================
 program
-  .command('rm <filepath>')
-  .description(
-    'remove a file from the current filesystem while preserving history',
-  )
+  .command("rm <filepath>")
+  .alias("delete")
+  .description("remove a file from the current filesystem while preserving history")
   .action((filepath: string) => {
-    appendJournal({
-      timestamp: Date.now(),
+    const entry = createEntry({
       filepath,
       chunks: [],
       size: 0,
       isDeleted: true,
     });
+    appendJournal(entry);
     console.log(`File ${filepath} marked as deleted in the journal.`);
   });
 
+// ============================================================================
+// Restore Command (fixed typo: ressurect -> restore)
+// ============================================================================
 program
-  .command('ressurect <filepath>')
-  .description('restore a soft-deleted file from its history')
+  .command("restore <filepath>")
+  .alias("undel")
+  .description("restore a soft-deleted file from its history")
   .action((filepath: string) => {
     const entries = readJournal();
     let lastActive: JournalEntry | null = null;
 
     for (const entry of entries) {
-      if (entry.filepath === filepath) {
-        if (!entry.isDeleted) {
-          lastActive = entry;
-        }
+      if (entry.filepath === filepath && !entry.isDeleted) {
+        lastActive = entry;
       }
     }
 
     if (!lastActive) {
-      console.log(`No active version found for ${filepath}.`);
+      console.error(`No active version found for ${filepath}.`);
       process.exit(1);
     }
-    appendJournal({
-      timestamp: Date.now(),
+
+    const entry = createEntry({
       filepath,
-      chunks: lastActive.chunks,
-      size: lastActive.size,
+      chunks: [...lastActive.chunks],
+      size: Number(lastActive.size),
       isDeleted: false,
     });
+    
+    appendJournal(entry);
+    console.log(`File ${filepath} restored from ${new Date(Number(lastActive.timestamp)).toISOString()}`);
   });
 
+// ============================================================================
+// Watch Command
+// ============================================================================
 program
-  .command('watch')
-  .description('watch for changes in the filesystem')
+  .command("watch")
+  .alias("daemon")
+  .description("watch for changes in the filesystem")
   .action(() => {
-    console.log('Ghost daemon watching directory for changes...');
+    console.log("Ghost daemon watching directory for changes...");
     const activeTimeouts = new Map<string, NodeJS.Timeout>();
 
-    watch('.', { recursive: true }, (_eventType, filename) => {
+    watch(".", { recursive: true }, (_eventType, filename) => {
       // filename can be null in some cases
       if (
         filename == null ||
-        filename.startsWith('ghost') ||
-        filename.endsWith('~$*')
+        filename.startsWith("ghost") ||
+        filename.endsWith("~$*")
       ) {
         return;
       }
 
       if (activeTimeouts.has(filename)) {
-        clearTimeout(activeTimeouts.get(filename));
+        clearTimeout(activeTimeouts.get(filename)!);
       }
 
       activeTimeouts.set(
@@ -162,14 +216,14 @@ program
             const newHashStr = JSON.stringify(chunks);
 
             if (latestHashStr !== newHashStr) {
-              appendJournal({
-                timestamp: Date.now(),
+              const entry = createEntry({
                 filepath: filename,
-                chunks,
+                chunks: chunks as ChunkHash[],
                 size: content.length,
                 isDeleted: false,
               });
-              console.log(`[Watch] Auto-commited update for ${filename}`);
+              appendJournal(entry);
+              console.log(`[Watch] Auto-committed update for ${filename}`);
             }
           }
         }, 300),

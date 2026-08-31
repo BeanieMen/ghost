@@ -1,28 +1,51 @@
 {
   "name": "ghost",
-  "module": "index.ts",
+  "version": "1.0.0",
+  "description": "Temporal filesystem — time is part of the data",
+  "module": "src/index.ts",
   "type": "module",
-  "scripts": {
-    "build": " bun build src/index.ts --compile --outfile dist/ghost --target='bun'",
-    "lint": "eslint .",
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
+  "bin": {
+    "ghost": "src/index.ts"
   },
+  "scripts": {
+    "build": "bun build src/index.ts --compile --outfile dist/ghost --target=bun",
+    "build:types": "tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist/types",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "test:coverage": "bun test --coverage",
+    "check": "bun run typecheck && bun run lint && bun run format:check",
+    "prepublishOnly": "bun run check && bun run build && bun run build:types"
+  },
+  "keywords": [
+    "filesystem",
+    "temporal",
+    "version-control",
+    "content-addressable",
+    "sha256"
+  ],
+  "author": "",
+  "license": "MIT",
   "private": true,
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
+    "@eslint/js": "^9.0.0",
     "@types/bun": "latest",
-    "eslint": "^10.9.1",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-config-strict": "^14.0.1",
-    "prettier": "^3.9.6",
-    "typescript-eslint": "^8.69.0"
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^10.0.0",
+    "prettier": "^3.3.0",
+    "typescript-eslint": "^8.0.0"
   },
   "peerDependencies": {
-    "typescript": "^5"
+    "typescript": "^5.5.0"
   },
   "dependencies": {
-    "commander": "^15.0.0",
-    "jiti": "^2.7.0"
+    "commander": "^12.0.0"
+  },
+  "engines": {
+    "bun": ">=1.1.0"
   }
 }
