@@ -3,16 +3,26 @@
   "module": "index.ts",
   "type": "module",
   "scripts": {
-    "build": " bun build src/index.ts --compile --outfile dist/ghost --target='bun'"
+    "build": " bun build src/index.ts --compile --outfile dist/ghost --target='bun'",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "private": true,
   "devDependencies": {
-    "@types/bun": "latest"
+    "@eslint/js": "^10.0.1",
+    "@types/bun": "latest",
+    "eslint": "^10.9.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-config-strict": "^14.0.1",
+    "prettier": "^3.9.6",
+    "typescript-eslint": "^8.69.0"
   },
   "peerDependencies": {
     "typescript": "^5"
   },
   "dependencies": {
-    "commander": "^15.0.0"
+    "commander": "^15.0.0",
+    "jiti": "^2.7.0"
   }
 }

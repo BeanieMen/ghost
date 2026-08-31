@@ -1,11 +1,11 @@
-import * as crypto from "crypto";
-import * as path from "path";
-import * as fs from "fs";
+import * as crypto from 'crypto';
+import * as path from 'path';
+import * as fs from 'fs';
 
-import { OBJECTS_DIR } from "../types/constants";
+import { OBJECTS_DIR } from '../types/constants';
 
 export function hashChunk(data: Buffer): string {
-  return crypto.createHash("sha256").update(data).digest("hex");
+  return crypto.createHash('sha256').update(data).digest('hex');
 }
 
 export function storeChunk(data: Buffer): string {
