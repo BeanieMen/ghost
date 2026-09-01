@@ -3,13 +3,15 @@ import { execSync, spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const TEST_DIR = '/tmp/ghost-test-cli-vitest';
-const BIN = path.join('/home/beanie/ghost', 'dist', 'ghost');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+const CMD = `bun ${path.join(ROOT, 'src', 'index.ts')}`;
 
 const run = (args: string, opts: { cwd?: string } = {}): string => {
   try {
-    return execSync(`${BIN} ${args}`, { encoding: 'utf-8', cwd: opts.cwd ?? TEST_DIR });
+    return execSync(`${CMD} ${args}`, { encoding: 'utf-8', cwd: opts.cwd ?? TEST_DIR });
   } catch (e: unknown) {
     if (e instanceof Error && 'stdout' in e) {
       return String((e as { stdout: unknown }).stdout);
@@ -19,7 +21,10 @@ const run = (args: string, opts: { cwd?: string } = {}): string => {
 };
 
 const runExit = (args: string): { status: number; stdout: string; stderr: string } => {
-  const r = spawnSync(BIN, args.split(' '), { encoding: 'utf-8', cwd: TEST_DIR });
+  const r = spawnSync('bun', [path.join(ROOT, 'src', 'index.ts'), ...args.split(' ')], {
+    encoding: 'utf-8',
+    cwd: TEST_DIR,
+  });
   return { status: r.status ?? -1, stdout: r.stdout, stderr: r.stderr };
 };
 

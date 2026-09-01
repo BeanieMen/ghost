@@ -61,6 +61,11 @@ describe('journal module', () => {
       expect(readJournal()).toEqual([]);
     });
 
+    it('returns empty array when journal file is missing', () => {
+      fs.rmSync(JOURNAL_FILE);
+      expect(readJournal()).toEqual([]);
+    });
+
     it('parses all entries', () => {
       appendJournal(createEntry({ filepath: 'a.txt', chunks: [H1], size: 1, isDeleted: false }));
       appendJournal(createEntry({ filepath: 'b.txt', chunks: [H2], size: 2, isDeleted: true }));
