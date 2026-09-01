@@ -20,7 +20,7 @@
 <p align="center"> A temporal filesystem that treats time as part of the data. </p>
 
 
-Ghost is a content-addressable filesystem where every write creates an immutable snapshot. Content is chunked (4KB), hashed with SHA-256, and stored with full version history. Read any file at any point in time.
+Ghost is a content-addressable filesystem where every write creates an immutable snapshot. Content is chunked (4KB), hashed with SHA-256, and stored with full version history. Read any file at any point in time. You can store both physical files via `ghost write` and temporal files (files not existing in fs but in objects) via `ghost write` and read via `ghost read`
 
 ## Architecture
 
