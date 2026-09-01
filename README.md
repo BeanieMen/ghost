@@ -4,7 +4,9 @@
 <a href="https://bun.sh/"><img src="https://img.shields.io/badge/Bun-1.1+-000000?logo=bun&logoColor=white" alt="Bun"></a>
 <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License"></a>
 <a href="https://github.com/beaniemen/ghost/actions/workflows/test.yml"><img src="https://github.com/beaniemen/ghost/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
-<a href="https://codecov.io/gh/beaniemen/ghost"><img src="https://codecov.io/gh/beaniemen/ghost/graph/badge.svg" alt="Coverage"></a>
+<a href="https://codecov.io/github/BeanieMen/ghost" > 
+ <img src="https://codecov.io/github/BeanieMen/ghost/graph/badge.svg?token=BR31HJIZ2D"/> 
+ </a>
 
 </div>
 
@@ -44,6 +46,14 @@ Ghost is a content-addressable filesystem where every write creates an immutable
 - **Immutable snapshots**: Every write creates a new version
 - **Temporal queries**: Read files at any historical timestamp
 - **Atomic operations**: ENOENT race conditions eliminated with `mkdirSync(recursive)` (i faced this while using sync file ops. had to debug and fix)
+
+## Test Coverage
+<h3>this is the coverage of test on each and every file (all green means everything is tested and passes the tests)</h3>
+
+<a href="https://codecov.io/github/BeanieMen/ghost" > 
+ <img src="https://codecov.io/github/BeanieMen/ghost/graphs/sunburst.svg?token=BR31HJIZ2D"/> 
+ </a>
+
 
 ## Quick Start
 
