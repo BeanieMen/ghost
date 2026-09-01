@@ -1,10 +1,23 @@
-<h1 align="center">Your Heading Text Here</h1>
+<div align="right">
+  <a href="https://www.typescriptlang.org/">
+    <img src="https://img.shields.io/badge/TypeScript-5.5+-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
+  </a>
+  <a href="https://bun.sh/">
+    <img src="https://img.shields.io/badge/Bun-1.1+-000000?logo=bun&logoColor=white" alt="Bun">
+  </a>
+  <a href="https://opensource.org/licenses/MIT">
+    <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License">
+  </a>
+</div>
+<p align="center">
+<img width="256" height="310" alt="image" src="assets/logo.png" />
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.5+-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Bun](https://img.shields.io/badge/Bun-1.1+-000000?logo=bun&logoColor=white)](https://bun.sh/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+<h1 align="center">Ghost</h1>
 
-> **A temporal filesystem that treats time as part of the data.**
+
+
+<p align="center"> A temporal filesystem that treats time as part of the data. </p>
+
 
 Ghost is a content-addressable filesystem where every write creates an immutable snapshot. Content is chunked (4KB), hashed with SHA-256, and stored with full version history. Read any file at any point in time.
 
@@ -31,7 +44,7 @@ Ghost is a content-addressable filesystem where every write creates an immutable
 - **Content-addressable storage**: Deduplicates identical content automatically
 - **Immutable snapshots**: Every write creates a new version
 - **Temporal queries**: Read files at any historical timestamp
-- **Atomic operations**: ENOENT race conditions eliminated with `mkdirSync(recursive)`
+- **Atomic operations**: ENOENT race conditions eliminated with `mkdirSync(recursive)` (i faced this while using sync file ops. had to debug and fix)
 
 ## Quick Start
 
@@ -73,85 +86,33 @@ bun run ghost watch
 | `restore <path>`         | `undel`  | Restore last active version          |
 | `watch`                  | `daemon` | Watch directory, auto-commit changes |
 
-## Type Safety
 
-Ghost uses **branded types** for domain modeling:
-
-```typescript
-type FileId = Brand<string, 'FileId'>;
-type ChunkHash = Brand<string, 'ChunkHash'>;
-type Timestamp = Brand<number, 'Timestamp'>;
-```
-
-This prevents accidental mixing of identifiers at compile time.
-
-**Discriminated unions** enable exhaustive state handling:
-
-```typescript
-type OperationState<T> =
-  | { status: 'pending' }
-  | { status: 'loading'; startedAt: Timestamp }
-  | { status: 'success'; data: T; completedAt: Timestamp }
-  | { status: 'error'; error: Error; failedAt: Timestamp };
-```
-
-**`satisfies` operator** validates object shapes at compile time:
-
-```typescript
-const entry = createEntry({ filepath, chunks, size, isDeleted: false });
-// TypeScript validates shape matches JournalEntry exactly
-```
-
-## Development
+## How to run
 
 ```bash
-# Install dependencies
 bun install
-
-# Type checking
-bun run typecheck
-
-# Linting
-bun run lint
-
-# Formatting
-bun run format
-
-# Run all checks
-bun run check
-
-# Run tests
-bun run test
-
-# Build binary
 bun run build
 ```
 
-## Project Structure
+run binary
+```bash
+./dist/ghost
+```
 
-```
-src/
-├── index.ts              # CLI entry point
-├── helper.ts             # Async file operations
-├── types/                # Type definitions
-│   ├── index.ts          # Branded types, discriminated unions
-│   └── constants.ts      # Configuration constants
-├── helpers/              # Pure utility functions
-│   └── crypto.ts         # Chunking, hashing, storage
-├── core/                 # Business logic
-│   └── journal.ts        # Journal operations
-└── store/                # Persistence layer (reserved)
-```
 
 ## How It Works
+first write, parses content into 4kb chunks and hashes each chunk to store and then appends to a general
+read then looks into the jounral from files and regenrates it from chunk hashes
 
-1. **Write**: Content → 4KB chunks → SHA-256 hash each → store in `.ghost/objects/{aa}/{bb...}` → append journal entry
-2. **Read**: Lookup latest journal entry for file → get chunk hashes → reconstruct from object store
-3. **History**: Filter journal by filepath → display timeline
-4. **Delete**: Append journal entry with `isDeleted: true` (content preserved)
-5. **Restore**: Find last non-deleted entry → re-append as active
-6. **Watch**: `fs.watch` with 300ms debounce → auto-commit on change
+history just lays out the timeline of a certain file
 
-## License
+delete doesnt really delete anything just removes it from being shown like how modern filesystem dont really delete files but remove the file from showing up in the file system. the file is still there just hidden
+restore undoes what delete did 
+and you can run `ghost watch` to automatically journal a folder and the files being edited in it to the journal
 
+## Ai Disclosure
+ai was used to only template readme (i rewrote it by hand now with lapse)
+and to refactor project and files 
+
+## LICENSE
 MIT
