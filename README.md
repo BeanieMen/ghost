@@ -1,14 +1,13 @@
-<div align="right">
-  <a href="https://www.typescriptlang.org/">
-    <img src="https://img.shields.io/badge/TypeScript-5.5+-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
-  </a>
-  <a href="https://bun.sh/">
-    <img src="https://img.shields.io/badge/Bun-1.1+-000000?logo=bun&logoColor=white" alt="Bun">
-  </a>
-  <a href="https://opensource.org/licenses/MIT">
-    <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License">
-  </a>
+<div align="center">
+
+<a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.5+-3178C6?logo=typescript&logoColor=white" alt="TypeScript"></a>
+<a href="https://bun.sh/"><img src="https://img.shields.io/badge/Bun-1.1+-000000?logo=bun&logoColor=white" alt="Bun"></a>
+<a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License"></a>
+<a href="https://github.com/beaniemen/ghost/actions/workflows/test.yml"><img src="https://github.com/beaniemen/ghost/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
+<a href="https://codecov.io/gh/beaniemen/ghost"><img src="https://codecov.io/gh/beaniemen/ghost/graph/badge.svg" alt="Coverage"></a>
+
 </div>
+
 <p align="center">
 <img width="256" height="310" alt="image" src="assets/logo.png" />
 
