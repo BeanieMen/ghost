@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import {
@@ -9,14 +9,18 @@ import {
 } from '../../../src/core/journal';
 import { JOURNAL_FILE } from '../../../src/types/constants';
 
-const TEST_DIR = '/tmp/ghost-test-journal';
+const TEST_DIR = '/tmp/ghost-test-journal-vitest';
+
+// Valid chunk hashes are 64-hex strings (enforced by createEntry)
+const H1 = 'a'.repeat(64);
+const H2 = 'b'.repeat(64);
 
 describe('journal module', () => {
   beforeEach(async () => {
     await fsp.rm(TEST_DIR, { recursive: true, force: true });
     await fsp.mkdir(TEST_DIR, { recursive: true });
     process.chdir(TEST_DIR);
-    // Create journal file
+    await fsp.mkdir('.ghost', { recursive: true });
     await fsp.writeFile(JOURNAL_FILE, '');
   });
 
@@ -28,32 +32,25 @@ describe('journal module', () => {
     it('appends entry to journal file', () => {
       const entry = createEntry({
         filepath: 'test.txt',
-        chunks: ['abc123'],
+        chunks: [H1],
         size: 100,
         isDeleted: false,
       });
       appendJournal(entry);
       const content = fs.readFileSync(JOURNAL_FILE, 'utf-8');
       expect(content).toContain('test.txt');
-      expect(content).toContain('abc123');
+      expect(content).toContain(H1);
     });
 
     it('throws if journal file does not exist', () => {
       fs.rmSync(JOURNAL_FILE);
-      const entry = createEntry({
-        filepath: 'test.txt',
-        chunks: [],
-        size: 0,
-        isDeleted: false,
-      });
+      const entry = createEntry({ filepath: 'test.txt', chunks: [], size: 0, isDeleted: false });
       expect(() => appendJournal(entry)).toThrow('Journal file does not exist');
     });
 
     it('each entry on new line', () => {
-      const entry1 = createEntry({ filepath: 'a.txt', chunks: ['1'], size: 1, isDeleted: false });
-      const entry2 = createEntry({ filepath: 'b.txt', chunks: ['2'], size: 2, isDeleted: false });
-      appendJournal(entry1);
-      appendJournal(entry2);
+      appendJournal(createEntry({ filepath: 'a.txt', chunks: [H1], size: 1, isDeleted: false }));
+      appendJournal(createEntry({ filepath: 'b.txt', chunks: [H2], size: 2, isDeleted: false }));
       const lines = fs.readFileSync(JOURNAL_FILE, 'utf-8').trim().split('\n');
       expect(lines.length).toBe(2);
     });
@@ -61,57 +58,37 @@ describe('journal module', () => {
 
   describe('readJournal', () => {
     it('returns empty array for empty journal', () => {
-      const entries = readJournal();
-      expect(entries).toEqual([]);
+      expect(readJournal()).toEqual([]);
     });
 
     it('parses all entries', () => {
-      const entry1 = createEntry({ filepath: 'a.txt', chunks: ['1'], size: 1, isDeleted: false });
-      const entry2 = createEntry({ filepath: 'b.txt', chunks: ['2'], size: 2, isDeleted: true });
-      appendJournal(entry1);
-      appendJournal(entry2);
+      appendJournal(createEntry({ filepath: 'a.txt', chunks: [H1], size: 1, isDeleted: false }));
+      appendJournal(createEntry({ filepath: 'b.txt', chunks: [H2], size: 2, isDeleted: true }));
       const entries = readJournal();
       expect(entries.length).toBe(2);
-      const first = entries[0];
-      const second = entries[1];
-      expect(first).toBeDefined();
-      expect(second).toBeDefined();
-      expect(first!.filepath.toString()).toBe('a.txt');
-      expect(second!.isDeleted).toBe(true);
+      expect(entries[0]!.filepath.toString()).toBe('a.txt');
+      expect(entries[1]!.isDeleted).toBe(true);
     });
 
     it('preserves branded types', () => {
-      const entry = createEntry({
-        filepath: 'test.txt',
-        chunks: ['abc'],
-        size: 10,
-        isDeleted: false,
-      });
-      appendJournal(entry);
-      const entries = readJournal();
-      expect(entries[0]).toHaveProperty('__brand', 'JournalEntry');
+      appendJournal(
+        createEntry({ filepath: 'test.txt', chunks: [H1], size: 10, isDeleted: false })
+      );
+      expect(readJournal()[0]).toHaveProperty('__brand', 'JournalEntry');
     });
   });
 
   describe('resolveFileState', () => {
-    beforeEach(() => {
-      // Write entries at different times
-      const entry1 = createEntry({
-        filepath: 'file.txt',
-        chunks: ['v1'],
-        size: 10,
-        isDeleted: false,
-      });
-      appendJournal(entry1);
-      const entry2 = createEntry({
-        filepath: 'file.txt',
-        chunks: ['v2'],
-        size: 20,
-        isDeleted: false,
-      });
-      appendJournal(entry2);
-      const entry3 = createEntry({ filepath: 'file.txt', chunks: [], size: 0, isDeleted: true });
-      appendJournal(entry3);
+    beforeEach(async () => {
+      appendJournal(
+        createEntry({ filepath: 'file.txt', chunks: [H1], size: 10, isDeleted: false })
+      );
+      await new Promise(r => setTimeout(r, 3));
+      appendJournal(
+        createEntry({ filepath: 'file.txt', chunks: [H2], size: 20, isDeleted: false })
+      );
+      await new Promise(r => setTimeout(r, 3));
+      appendJournal(createEntry({ filepath: 'file.txt', chunks: [], size: 0, isDeleted: true }));
     });
 
     it('returns latest entry by default', () => {
@@ -121,54 +98,47 @@ describe('journal module', () => {
     });
 
     it('returns entry at specific timestamp', () => {
-      const entries = readJournal();
-      const second = entries[1];
-      expect(second).toBeDefined();
-      const midTime = Number(second!.timestamp);
-      const entry = resolveFileState('file.txt', midTime);
+      const second = readJournal()[1]!;
+      const entry = resolveFileState('file.txt', Number(second.timestamp));
       expect(entry).not.toBeNull();
-      expect(entry!.chunks.map(String)).toEqual(['v2']);
+      expect(entry!.chunks.map(String)).toEqual([H2]);
     });
 
     it('returns null for non-existent file', () => {
-      const entry = resolveFileState('nonexistent.txt');
-      expect(entry).toBeNull();
+      expect(resolveFileState('nonexistent.txt')).toBeNull();
     });
 
     it('ignores entries after target time', () => {
-      const entries = readJournal();
-      const first = entries[0];
-      expect(first).toBeDefined();
-      const earlyTime = Number(first!.timestamp) - 1;
-      const entry = resolveFileState('file.txt', earlyTime);
-      expect(entry).toBeNull();
+      const first = readJournal()[0]!;
+      expect(resolveFileState('file.txt', Number(first.timestamp) - 1)).toBeNull();
     });
   });
 
   describe('createEntry', () => {
-    it('creates valid JournalEntry with satisfies', () => {
+    it('creates valid JournalEntry', () => {
       const entry = createEntry({
         filepath: 'test.txt',
-        chunks: ['hash1', 'hash2'],
+        chunks: [H1, H2],
         size: 8192,
         isDeleted: false,
       });
       expect(entry.__brand).toBe('JournalEntry');
       expect(entry.filepath.toString()).toBe('test.txt');
-      expect(entry.chunks.map(String)).toEqual(['hash1', 'hash2']);
+      expect(entry.chunks.map(String)).toEqual([H1, H2]);
       expect(Number(entry.size)).toBe(8192);
       expect(entry.isDeleted).toBe(false);
     });
 
     it('creates deleted entry', () => {
-      const entry = createEntry({
-        filepath: 'deleted.txt',
-        chunks: [],
-        size: 0,
-        isDeleted: true,
-      });
+      const entry = createEntry({ filepath: 'deleted.txt', chunks: [], size: 0, isDeleted: true });
       expect(entry.isDeleted).toBe(true);
       expect(entry.chunks.length).toBe(0);
+    });
+
+    it('rejects invalid chunk hashes', () => {
+      expect(() =>
+        createEntry({ filepath: 'bad.txt', chunks: ['not-a-hash'], size: 1, isDeleted: false })
+      ).toThrow(/Invalid ChunkHash/);
     });
   });
 });

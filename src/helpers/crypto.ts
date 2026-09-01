@@ -12,7 +12,6 @@ export function hashChunk(data: Buffer): ChunkHash {
 
 export function storeChunk(data: Buffer): ChunkHash {
   const hash = hashChunk(data);
-  console.log(hash);
   const subDir = path.join(OBJECTS_DIR, hash.slice(0, 2));
   const filePath = path.join(subDir, hash.slice(2));
 
@@ -27,6 +26,13 @@ export function chunkBuffer(buffer: Buffer): ChunkHash[] {
     chunks.push(storeChunk(buffer.subarray(i, i + CHUNK_SIZE)));
   }
   return chunks;
+}
+
+export function snapshotHash(params: { chunks: readonly ChunkHash[]; isDeleted: boolean }): string {
+  return crypto
+    .createHash('sha256')
+    .update(JSON.stringify({ chunks: params.chunks, isDeleted: params.isDeleted }))
+    .digest('hex');
 }
 
 export function readChunks(chunkHashes: readonly ChunkHash[]): Buffer {

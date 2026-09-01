@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from 'commander';
 import { createDirectoryIfNotExists, createFile } from './helper';
-import { chunkBuffer, readChunks } from './helpers/crypto';
+import { chunkBuffer, readChunks, snapshotHash } from './helpers/crypto';
 import { appendJournal, readJournal, resolveFileState, createEntry } from './core/journal';
 import * as path from 'node:path';
 import type { JournalEntry } from './types';
@@ -22,6 +22,7 @@ Examples:
   $ ghost read file.txt                 # Read latest version
   $ ghost read file.txt -t 1234567890   # Read at timestamp
   $ ghost history file.txt              # Show change history
+  $ ghost rewind file.txt <hash>        # Rewind to a snapshot by hash
   $ ghost rm file.txt                   # Soft delete
   $ ghost restore file.txt              # Restore from delete
   $ ghost watch                         # Watch for changes
@@ -76,12 +77,15 @@ program
     const entry = resolveFileState(filepath, time);
 
     if (!entry || entry.chunks.length === 0) {
-      console.error(`No content found for ${filepath} at ${new Date(time).toISOString()}`);
+      console.error(`No content found for ${filepath} at ${new Date(time).toLocaleString()}`);
       process.exit(1);
     }
 
     const content = readChunks(entry.chunks);
     process.stdout.write(content.toString('utf-8'));
+    if (process.stdout.isTTY) {
+      process.stdout.write('\n');
+    }
   });
 
 program
@@ -100,9 +104,10 @@ program
     console.log(`Timeline for ${filepath}:`);
     for (const entry of fileHistory) {
       const status = entry.isDeleted ? 'deleted' : 'written';
-      const time = new Date(Number(entry.timestamp)).toISOString();
+      const time = new Date(Number(entry.timestamp)).toLocaleString();
+      const hash = snapshotHash({ chunks: entry.chunks, isDeleted: entry.isDeleted });
       console.log(
-        `- ${time} | ${entry.size} bytes | ${status} | ${entry.chunks.length} chunk${entry.chunks.length !== 1 ? 's' : ''}`
+        `- ${time} | ${entry.size} bytes | ${status} | ${entry.chunks.length} chunk${entry.chunks.length !== 1 ? 's' : ''} | ${hash}`
       );
     }
   });
@@ -150,7 +155,51 @@ program
 
     appendJournal(entry);
     console.log(
-      `File ${filepath} restored from ${new Date(Number(lastActive.timestamp)).toISOString()}`
+      `File ${filepath} restored from ${new Date(Number(lastActive.timestamp)).toLocaleString()}`
+    );
+  });
+
+program
+  .command('rewind <filepath> <hash>')
+  .description('rewind a file to a specific snapshot identified by its hash')
+  .action((filepath: string, hash: string) => {
+    const entries = readJournal();
+    const targetHash = hash.toLowerCase();
+    let match: JournalEntry | null = null;
+
+    for (const entry of entries) {
+      if (entry.filepath !== filepath) {
+        continue;
+      }
+      const entryHash = snapshotHash({ chunks: entry.chunks, isDeleted: entry.isDeleted });
+      if (entryHash.startsWith(targetHash)) {
+        match = entry;
+      }
+    }
+
+    if (!match) {
+      console.error(`No snapshot found for ${filepath} matching hash '${hash}'.`);
+      console.error(`Run 'ghost history ${filepath}' to list snapshot hashes.`);
+      process.exit(1);
+    }
+
+    if (match.isDeleted) {
+      console.error(`Snapshot ${hash} is a deleted state; nothing to rewind to.`);
+      process.exit(1);
+    }
+
+    const entry = createEntry({
+      filepath,
+      chunks: [...match.chunks],
+      size: Number(match.size),
+      isDeleted: false,
+    });
+    appendJournal(entry);
+    console.log(
+      `File ${filepath} rewound to snapshot ${snapshotHash({
+        chunks: entry.chunks,
+        isDeleted: false,
+      })} (from ${new Date(Number(match.timestamp)).toLocaleString()})`
     );
   });
 
@@ -162,13 +211,25 @@ program
     console.log('Ghost daemon watching directory for changes...');
     const activeTimeouts = new Map<string, NodeJS.Timeout>();
 
+    const isWatched = (filename: string | null | undefined): filename is string => {
+      if (filename === null || filename === undefined) {
+        return false;
+      }
+      const normalized = filename.replace(/\\/g, '/');
+      if (normalized === '.ghost' || normalized.startsWith('.ghost/')) {
+        return false;
+      }
+      if (filename.endsWith('~$*')) {
+        return false;
+      }
+      if (filename === 'ghost' || filename.startsWith('ghost/')) {
+        return false;
+      }
+      return true;
+    };
+
     watch('.', { recursive: true }, (_eventType, filename) => {
-      if (
-        filename === null ||
-        filename === undefined ||
-        filename.startsWith('ghost') ||
-        filename.endsWith('~$*')
-      ) {
+      if (!isWatched(filename)) {
         return;
       }
 
