@@ -1,4 +1,4 @@
-# Ghost Filesystem
+<h1 align="center">Your Heading Text Here</h1>
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5+-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Bun](https://img.shields.io/badge/Bun-1.1+-000000?logo=bun&logoColor=white)](https://bun.sh/)
